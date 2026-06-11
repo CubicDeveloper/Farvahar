@@ -3101,58 +3101,113 @@
       updateCursor();
     })();
     // ─────────────────────────────────────────────
-    // LOGIN SYSTEM
+    // REAL BACKEND INTEGRATION
     // ─────────────────────────────────────────────
-    const loginBtn = document.querySelector('.btn-login');
-    const loginModal = document.getElementById('login-modal');
-    const closeModalBtn = document.getElementById('close-modal');
-    const loginForm = document.getElementById('login-form');
+    const API_BASE = 'http://localhost:5000/api';
 
-    if (loginBtn && loginModal) {
-      // Open modal
-      loginBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        loginModal.style.display = 'flex';
-      });
+    async function apiCall(endpoint, method = 'POST', body = null) {
+      try {
+        const options = {
+          method: method,
+          headers: { 'Content-Type': 'application/json' },
+        };
+        if (body) options.body = JSON.stringify(body);
 
-      // Close modal
-      closeModalBtn.addEventListener('click', () => {
-        loginModal.style.display = 'none';
-      });
+        const res = await fetch(API_BASE + endpoint, options);
+        const data = await res.json();
 
-      // Close when clicking outside
-      loginModal.addEventListener('click', (e) => {
-        if (e.target === loginModal) loginModal.style.display = 'none';
-      });
-
-      // Form submit
-      loginForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        const email = document.getElementById('login-email').value.trim();
-        const password = document.getElementById('login-password').value.trim();
-
-        if (email && password) {
-          localStorage.setItem('farvahar_user', JSON.stringify({ email, name: "Farvahar Creator" }));
-          alert("✅ Welcome back! You are now logged in (Demo Mode)");
-          loginModal.style.display = 'none';
-          updateLoginUI();
-        } else {
-          alert("Please fill in email and password");
-        }
-      });
+        if (!res.ok) throw new Error(data.message || 'Request failed');
+        return data;
+      } catch (err) {
+        console.error(err);
+        throw err;
+      }
     }
 
+    // Handle Login
+    async function handleLogin(email, password) {
+      try {
+        const data = await apiCall('/auth/login', 'POST', { email, password });
+        localStorage.setItem('farvahar_token', data.token);
+        localStorage.setItem('farvahar_user', JSON.stringify(data.user));
+        alert("✅ Login successful! Welcome back.");
+        updateLoginUI();
+        return true;
+      } catch (err) {
+        alert("❌ " + (err.message || "Login failed"));
+        return false;
+      }
+    }
+
+    // Handle Register
+    async function handleRegister(name, email, password) {
+      try {
+        const data = await apiCall('/auth/register', 'POST', { name, email, password });
+        localStorage.setItem('farvahar_token', data.token);
+        localStorage.setItem('farvahar_user', JSON.stringify(data.user));
+        alert("✅ Account created successfully!");
+        updateLoginUI();
+        return true;
+      } catch (err) {
+        alert("❌ " + (err.message || "Registration failed"));
+        return false;
+      }
+    }
+
+    // Update Login Button UI
     function updateLoginUI() {
-      const user = localStorage.getItem('farvahar_user');
-      if (user && loginBtn) {
-        loginBtn.textContent = "My Account";
+      const userData = localStorage.getItem('farvahar_user');
+      const loginBtn = document.querySelector('.btn-login');
+      if (userData && loginBtn) {
+        const user = JSON.parse(userData);
+        loginBtn.textContent = user.name || "My Account";
         loginBtn.style.background = "rgba(42, 191, 191, 0.2)";
         loginBtn.style.color = "var(--teal-bright)";
         loginBtn.style.borderColor = "var(--teal-bright)";
       }
     }
 
-    // Initialize on load
+    // Login Form
+    const loginModal = document.getElementById('login-modal');
+    const loginForm = document.getElementById('login-form');
+    const closeModalBtn = document.getElementById('close-modal');
+    const loginBtn = document.querySelector('.btn-login');
+
+    if (loginBtn && loginModal) {
+      loginBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        loginModal.style.display = 'flex';
+      });
+    }
+
+    if (closeModalBtn) {
+      closeModalBtn.addEventListener('click', () => {
+        loginModal.style.display = 'none';
+      });
+    }
+
+    if (loginModal) {
+      loginModal.addEventListener('click', (e) => {
+        if (e.target === loginModal) loginModal.style.display = 'none';
+      });
+    }
+
+    if (loginForm) {
+      loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('login-email').value.trim();
+        const password = document.getElementById('login-password').value.trim();
+
+        if (email && password) {
+          await handleLogin(email, password);
+          loginModal.style.display = 'none';
+        } else {
+          alert("Please fill in email and password");
+        }
+      });
+    }
+
+    // Initialize
     updateLoginUI();
 
     // Close modal with Escape key
